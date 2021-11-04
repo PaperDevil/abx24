@@ -6,12 +6,15 @@ Bitrix24
 
 This module implements the Bitrix24 REST API.
 
-:copyright: (c) 2019 by Akop Kesheshyan.
+:copyright: (c) 2021 by Niel Ketov @paperdevil/@ketovx.
+:copyright: Forked from akopkesheshyan/bitrix24-python-rest
 
 """
-import requests
 from time import sleep
 from urllib.parse import urlparse
+
+from aiohttp import ClientSession
+
 from .exceptions import BitrixError
 
 
@@ -24,7 +27,7 @@ class Bitrix24(object):
     Usage::
       >>> from bitrix24 import Bitrix24
       >>> bx24 = Bitrix24('https://example.bitrix24.com/rest/1/33olqeits4avuyqu')
-      >>> bx24.callMethod('crm.product.list')
+      >>> await bx24.call_method('crm.product.list')
     """
 
     def __init__(self, domain, timeout=60):
@@ -44,7 +47,7 @@ class Bitrix24(object):
         user_id, code = o.path.split('/')[2:4]
         return "{0}://{1}/rest/{2}/{3}".format(o.scheme, o.netloc, user_id, code)
 
-    def _prepare_params(self, params, prev=''):
+    async def _prepare_params(self, params, prev=''):
         """Transforms list of params to a valid bitrix array."""
         ret = ''
         if isinstance(params, dict):
@@ -52,11 +55,11 @@ class Bitrix24(object):
                 if isinstance(value, dict):
                     if prev:
                         key = "{0}[{1}]".format(prev, key)
-                    ret += self._prepare_params(value, key)
+                    ret += await self._prepare_params(value, key)
                 elif (isinstance(value, list) or isinstance(value, tuple)) and len(value) > 0:
                     for offset, val in enumerate(value):
                         if isinstance(val, dict):
-                            ret += self._prepare_params(
+                            ret += await self._prepare_params(
                                 val, "{0}[{1}][{2}]".format(prev, key, offset))
                         else:
                             if prev:
@@ -71,29 +74,36 @@ class Bitrix24(object):
                         ret += "{0}={1}&".format(key, value)
         return ret
 
-    def callMethod(self, method, **params):
+    async def call_method(self, method, session: ClientSession = None, **params):
         """Calls a REST method with specified parameters.
 
-       :param url: REST method name.
-       :param \*\*params: Optional arguments which will be converted to a POST request string.
+        :param session: aiohttp.ClientSession class
+       :param method: REST method name.
        :return: Returning the REST method response as an array, an object or a scalar
        """
+
+        if not session:
+            session = ClientSession()
 
         try:
             url = '{0}/{1}.json'.format(self.domain, method)
 
-            p = self._prepare_params(params)
+            p = await self._prepare_params(params)
 
             if method.rsplit('.', 1)[0] in ['add', 'update', 'delete', 'set']:
-                r = requests.post(url, data=p, timeout=self.timeout).json()
+                async with session:
+                    async with session.post(url, json=p, timeout=self.timeout) as resp:
+                        r = await resp.json()
             else:
-                r = requests.get(url, params=p, timeout=self.timeout).json()
+                async with session:
+                    async with session.get(url, params=p, timeout=self.timeout) as resp:
+                        r = await resp.json()
         except ValueError:
             if r['error'] not in 'QUERY_LIMIT_EXCEEDED':
                 raise BitrixError(r)
             # Looks like we need to wait until expires limitation time by Bitrix24 API
             sleep(2)
-            return self.callMethod(method, **params)
+            return await self.call_method(method, **params)
 
         if 'error' in r:
             raise BitrixError(r)
@@ -101,7 +111,7 @@ class Bitrix24(object):
             params['start'] = 0
         if 'next' in r and r['total'] > params['start']:
             params['start'] += 50
-            data = self.callMethod(method, **params)
+            data = await self.call_method(method, **params)
             if isinstance(r['result'], dict):
                 result = r['result'].copy()
                 result.update(data)

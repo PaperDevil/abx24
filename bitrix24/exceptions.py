@@ -6,7 +6,8 @@ Bitrix24.exceptions
 
 This module contains the set of Bitrix24 REST exceptions.
 
-:copyright: (c) 2019 by Akop Kesheshyan.
+:copyright: (c) 2021 by Niel Ketov @paperdevil/@ketovx.
+:copyright: Forked from akopkesheshyan/bitrix24-python-rest
 
 """
 
