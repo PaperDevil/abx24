@@ -1,6 +1,8 @@
 from distutils.core import setup
 from setuptools import find_packages
 
+from abx24 import __version__, __author__, __license__
+
 # read the contents of your README file
 from os import path
 this_directory = path.abspath(path.dirname(__file__))
@@ -9,24 +11,18 @@ with open(path.join(this_directory, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='abx24',
-    version='1.1.2',
+    version=__version__,
     install_requires=['aiohttp'],
     packages=find_packages(),
     url='https://github.com/paperdevil/bitrix24-python-rest',
-    license='MIT',
-    author='Niel (Ketov) Gorev',
+    license=__license__,
+    author=__author__,
     author_email='ketov-x@yandex.ru',
     description='Bitrix24 REST API wrapper provides easy way to communicate with bitrix24 portal over REST without OAuth',
     long_description=long_description,
     long_description_content_type='text/markdown',
     keywords='bitrix24 async api rest',
     classifiers=[
-        # How mature is this project? Common values are
-        #   3 - Alpha
-        #   4 - Beta
-        #   5 - Production/Stable
-        'Development Status :: 3 - Production/Stable',
-
         # Indicate who your project is intended for
         'Intended Audience :: Developers',
         'Natural Language :: Russian',
